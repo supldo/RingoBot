@@ -1,30 +1,7 @@
 from aiogram import types, Dispatcher
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from config import bot
-from random import randint
 from database.sql_commands import Database
 from datetime import datetime, timedelta
-
-async def secret_word(message: types.Message):
-    markup = InlineKeyboardMarkup()
-    button_call_1 = InlineKeyboardButton(
-        "Список пользователей",
-        callback_data="list_of_users"
-    )
-    markup.add(button_call_1)
-    button_call_2 = InlineKeyboardButton(
-        "Список потеницальных пользователей на бан",
-        callback_data="list_potential_user_ban"
-    )
-    markup.add(button_call_2)
-    button_call_3 = InlineKeyboardButton(
-        "Nothing? 🤔",
-        callback_data="nothing"
-    )
-    markup.add(button_call_3)
-    if message.chat.id == 931619695:
-        await message.reply("ZzZ...",
-                            reply_markup=markup)
 
 async def echo_ban(message: types.Message):
     is_admin = await bot.get_chat_member(chat_id=message.chat.id, user_id=message.from_user.id)
@@ -45,6 +22,5 @@ async def echo_ban(message: types.Message):
                     chat_id=message.chat.id,
                     message_id=message.message_id)
 
-def register_handlers_chat_actions(dp: Dispatcher):
-    dp.register_message_handler(secret_word, lambda word: "Ringo" in word.text)
+def register_handlers_echo_ban(dp: Dispatcher):
     dp.register_message_handler(echo_ban)

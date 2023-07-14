@@ -49,3 +49,25 @@ create_answers_quiz = """
     )
 """
 insert_answers_quiz = """INSERT INTO answers_quiz(id_user, quiz, quiz_option) VALUES (?, ?, ?)"""
+
+# user survey
+create_user_survey = """
+    CREATE TABLE IF NOT EXISTS user_survey (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        idea TEXT,
+        problems TEXT,
+        assessment INTEGER,
+        user_id INTEGER,
+        FOREIGN KEY (user_id) REFERENCES telegram_users (id)
+    )
+"""
+insert_user_survey = """INSERT INTO user_survey(idea, problems, assessment, user_id) 
+                        VALUES (?, ?, ?, ?)"""
+
+select_user_survey = """SELECT * FROM user_survey"""
+
+select_user_survey_by_id = """
+    SELECT * FROM user_survey AS survay
+    LEFT JOIN telegram_users AS user ON survay.user_id = user.id
+    WHERE survay.id = ?
+"""
