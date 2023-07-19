@@ -8,7 +8,14 @@ create_user_table_query = """
     )
 """
 insert_user_query = """INSERT OR IGNORE INTO telegram_users VALUES (?, ?, ?, ?)"""
-select_user_query = """SELECT ROW_NUMBER() OVER (ORDER BY id) as row_number, id, username, first_name, last_name FROM telegram_users"""
+select_user_query = """SELECT ROW_NUMBER() OVER (ORDER BY id)
+                    as row_number, id, username, first_name, last_name
+                    FROM telegram_users"""
+
+select_user_query_by_username = """SELECT id FROM telegram_users WHERE username = ?"""
+select_user_query_by_first_name = """SELECT id FROM telegram_users WHERE first_name = ?"""
+select_user_query_by_last_name = """SELECT id FROM telegram_users WHERE last_name = ?"""
+
 
 # user ban
 create_user_ban = """
@@ -70,4 +77,30 @@ select_user_survey_by_id = """
     SELECT * FROM user_survey AS survay
     LEFT JOIN telegram_users AS user ON survay.user_id = user.id
     WHERE survay.id = ?
+"""
+
+# complaint
+create_complaint_table = """
+    CREATE TABLE IF NOT EXISTS complaint(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_id INTEGER,
+        telegram_id_bad_user INTEGER,
+        reason TEXT,
+        count INTEGER,
+        FOREIGN KEY (telegram_id) REFERENCES telegram_users (id),
+        FOREIGN KEY (telegram_id_bad_user) REFERENCES telegram_users (id)
+    )
+"""
+
+insert_complaint_table = """
+    INSERT OR IGNORE INTO complaint(telegram_id, telegram_id_bad_user, reason, count)
+    VALUES (?, ?, ?, ?)
+"""
+
+select_complaint_table = """
+    SELECT count FROM complaint WHERE telegram_id_bad_user = ?
+"""
+
+select_complaint_table_check = """
+    SELECT telegram_id FROM complaint WHERE telegram_id = ? AND telegram_id_bad_user = ?
 """

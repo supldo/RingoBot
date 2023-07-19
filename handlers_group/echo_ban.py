@@ -22,5 +22,6 @@ async def echo_ban(message: types.Message):
                     chat_id=message.chat.id,
                     message_id=message.message_id)
 
+
 def register_handlers_echo_ban(dp: Dispatcher):
     dp.register_message_handler(echo_ban)
