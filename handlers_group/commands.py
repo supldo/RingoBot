@@ -1,3 +1,8 @@
+# modules
+from binascii import hexlify
+from os import urandom
+from random import randint
+from datetime import datetime, timedelta
 # aiogram
 from aiogram import Dispatcher, types
 from aiogram.dispatcher import FSMContext
@@ -5,13 +10,11 @@ from aiogram.dispatcher.filters import Text
 from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types import ContentType
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.deep_linking import _create_link
 # Database
 from database.sql_commands import Database
 # HELP
 from handlers_group.const import HELP_TEXT
-# modules
-from random import randint
-from datetime import datetime, timedelta
 # keyboards
 from keyboards import start_keyboard
 # bot
@@ -28,8 +31,29 @@ async def start_button(message: types.Message):
                                username=username,
                                first_name=first_name,
                                last_name=last_name)
+    Database().sql_insert_wallet(id)
     await message.reply(text=f"Привет {message.from_user.first_name}!",
                         reply_markup=start_keyboard.start_markup)
+
+    if len(message.text.split()) > 1: await referral_check(message.text.split()[1], message)
+
+
+# Обработчик кнопок
+async def button_handler(message: types.Message):
+    kb = start_keyboard
+    tx = message.text
+    if kb.help_button["text"] == tx:
+        await help_button(message)
+    elif kb.wallet_button["text"] == tx:
+        await wallet(message)
+    elif kb.reference_button["text"] == tx:
+        await reference_link(message)
+    elif kb.random_button["text"] == tx:
+        await random(message)
+    elif kb.quiz_button["text"] == tx:
+        await quiz_1(message)
+    elif kb.ruletka_button["text"] == tx:
+        await ruletka(message)
 
 
 # Команда HELP
@@ -37,14 +61,49 @@ async def help_button(message: types.Message):
     await bot.send_message(chat_id=message.chat.id, text=HELP_TEXT)
 
 
+# Проверка реферальной ссылки
+async def referral_check(referral, message):
+    user_id = Database().sql_select_user_by_link(f'%{referral}')[0]['link']
+    if user_id == message.from_user.id:
+        await bot.send_message(message.chat.id, 'Нельзя приглашать самого себя! 🙃')
+    elif not Database().sql_select_referral(message.from_user.id):
+        Database().sql_insert_referral(user_id, message.from_user.id)
+        Database().sql_update_wallet(user_id)
+        await bot.send_message(user_id, f'Пользователеь зашёл через вашу реферальную ссылку, к вам зачислено +100 баллов\n'
+                                        f'Свои баллы можете посмотреть через команду: /wallet')
+
+
+# Реферальная ссылка
+async def reference_link(message: types.Message):
+    link_exist = Database().sql_select_user_return_link(telegram_id=message.from_user.id)
+    link = link_exist[0]["link"]
+    if link:
+        await bot.send_message(chat_id=message.from_user.id,
+                               text=f"У тебя уже есть реферальная ссылка!\n"
+                                    f"Ссылка: {link}")
+    else:
+        code = hexlify(urandom(4)).decode()
+        link = await _create_link(link_type="start", payload=code)
+        Database().sql_update_user_reference_link(link=link, telegram_id=message.from_user.id)
+        await bot.send_message(message.from_user.id,
+                               f"Твоя реферальная ссылка: {link}")
+
+
+# Кошелёк
+async def wallet(message: types.Message):
+    point = Database().sql_select_wallet(message.from_user.id)
+    await message.reply(f'На вашем счету: {point} баллов')
+
+
 # Жалоба
 async def user_complaint(message: types.Message):
     text = message.text.split()
+
     telegram_id = int(message.from_user.id)
     telegram_id_bad_user = text[1][1:] if text[1][0] == "@" else text[1][0:]
     reason = " ".join(text[2:])
     count = 1
-    bad_user = False
+    bad_user = {'id': False}
 
     username = Database().sql_select_user_query_by_username(user=telegram_id_bad_user).fetchall()
     first_name = Database().sql_select_user_query_by_first_name(user=telegram_id_bad_user).fetchall()
@@ -59,21 +118,23 @@ async def user_complaint(message: types.Message):
 
     complaint_check = Database().sql_select_complaint_table_check(user_id=telegram_id, bad_user_id=bad_user['id']).fetchall()
 
-    if bad_user['id'] and bad_user['id'] != telegram_id:
-        if complaint_check:
-            await bot.send_message(chat_id=message.chat.id,
-                                   text=f'Вы уже отправляли жалобу на {text[1]}')
-        else:
-            Database().sql_insert_complaint_table(telegram_id=telegram_id,
-                                                  telegram_id_bad_user=bad_user['id'],
-                                                  reason=reason,
-                                                  count=count)
+    if complaint_check:
+        await bot.send_message(chat_id=message.chat.id,
+                               text=f'Вы уже отправляли жалобу на {text[1]}')
+    elif bad_user['id'] == telegram_id:
+        await bot.send_message(chat_id=message.chat.id,
+                               text=f'Не стоит на себя жаловатся! 🙃')
+    elif bad_user['id']:
+        Database().sql_insert_complaint_table(telegram_id=telegram_id,
+                                              telegram_id_bad_user=bad_user['id'],
+                                              reason=reason,
+                                              count=count)
 
-            await bot.send_message(chat_id=message.chat.id,
-                                   text=f'Отправлено жалоба на {text[1]}')
+        await bot.send_message(chat_id=message.chat.id,
+                               text=f'Отправлено жалоба на {text[1]}')
 
-            count_complaint = len(Database().sql_select_complaint_table(user_id=bad_user['id']).fetchall())
-
+        count_complaint = len(Database().sql_select_complaint_table(user_id=bad_user['id']).fetchall())
+        try:
             if count_complaint >= 3:
                 await bot.send_message(chat_id=bad_user['id'],
                                        text=f'На вас 3 раза пожаловались. '
@@ -84,6 +145,11 @@ async def user_complaint(message: types.Message):
                 await bot.send_message(chat_id=bad_user['id'],
                                        text=f'На вас пожаловались. '
                                             f'Ещё {3 - count_complaint} жалоба и вас исключат из группы!')
+        except:
+            print('Пользователь остановил общение с ботом.')
+    else:
+        await bot.send_message(chat_id=message.chat.id,
+                               text=f'Такой пользователь не найден')
 
 
 # Викторина
@@ -166,12 +232,14 @@ async def ruletka(message: types.Message):
 
 # Рандомное число
 async def random(message: types.Message):
-    try:
-        num_min, num_max = message.text.split()[1:]
-        random = randint(int(num_min), int(num_max))
-        await bot.send_message(message.chat.id, f'Случайное число: {random}')
-    except:
-        await bot.send_message(message.chat.id, 'Ошибка! Введите число от и до')
+    num_list = list(map(int, [num for num in message.text.split() if num.isdigit()]))
+    if len(num_list) == 1:
+        random = randint(1, num_list[0])
+    elif len(num_list) == 2:
+        random = randint(min(num_list), max(num_list))
+    else:
+        random = randint(1, 100)
+    await bot.send_message(message.chat.id, f'Случайное число: {random}')
 
 
 # Узнать свой ID
@@ -219,7 +287,9 @@ async def load_assessment(message: types.Message, state: FSMContext):
 def register_handlers(dp: Dispatcher):
     dp.register_message_handler(start_button, commands=['start'])
     dp.register_message_handler(help_button, commands=['help'])
+    dp.register_message_handler(reference_link, commands=['reference'])
     dp.register_message_handler(user_complaint, commands=['complaint'])
+    dp.register_message_handler(wallet, commands=['wallet'])
     dp.register_message_handler(quiz_1, commands=['quiz'])
     dp.register_callback_query_handler(quiz_2, lambda call: call.data == "button_call_1")
     dp.register_poll_answer_handler(handle_poll_answer)
@@ -230,3 +300,4 @@ def register_handlers(dp: Dispatcher):
     dp.register_message_handler(load_idea, state=FormStates.idea, content_types=['text'])
     dp.register_message_handler(load_problems, state=FormStates.problems, content_types=['text'])
     dp.register_message_handler(load_assessment, state=FormStates.assessment, content_types=['text'])
+    dp.register_message_handler(button_handler)

@@ -1,23 +1,67 @@
-# user
+# User
 create_user_table_query = """
     CREATE TABLE IF NOT EXISTS telegram_users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id INTEGER PRIMARY KEY,
         username CHAR(50), 
         first_name CHAR(50),
-        last_name CHAR(50)
+        last_name CHAR(50),
+        reference_link TEXT NULL
     )
 """
-insert_user_query = """INSERT OR IGNORE INTO telegram_users VALUES (?, ?, ?, ?)"""
+insert_user_query = """
+    INSERT OR IGNORE INTO telegram_users VALUES (?, ?, ?, ?, ?)
+"""
 select_user_query = """SELECT ROW_NUMBER() OVER (ORDER BY id)
-                    as row_number, id, username, first_name, last_name
+                    as row_number, id, username, first_name, last_name, reference_link
                     FROM telegram_users"""
+select_user_query_by_username = """
+    SELECT id FROM telegram_users WHERE username = ?
+"""
+select_user_query_by_first_name = """
+    SELECT id FROM telegram_users WHERE first_name = ?
+"""
+select_user_query_by_last_name = """
+    SELECT id FROM telegram_users WHERE last_name = ?
+"""
 
-select_user_query_by_username = """SELECT id FROM telegram_users WHERE username = ?"""
-select_user_query_by_first_name = """SELECT id FROM telegram_users WHERE first_name = ?"""
-select_user_query_by_last_name = """SELECT id FROM telegram_users WHERE last_name = ?"""
+
+# Wallet
+create_wallet = """
+    CREATE TABLE IF NOT EXISTS wallet (
+        id INTEGER PRIMARY KEY,
+        point INTEGER,
+        FOREIGN KEY (id) REFERENCES telegram_users (id)
+    )
+"""
+insert_wallet = """
+    INSERT OR IGNORE INTO wallet(id, point) VALUES (?, 0)
+"""
+select_wallet = """
+    SELECT point FROM wallet WHERE id = ?
+"""
+update_wallet = """
+    UPDATE wallet SET point = point + 100 WHERE id = ?
+"""
 
 
-# user ban
+# Referral
+create_referral = """
+    CREATE TABLE IF NOT EXISTS referral (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        owner_link_telegram_id INTEGER,
+        referral_telegram_id INTEGER,
+        UNIQUE(referral_telegram_id)
+    )
+"""
+insert_referral = """
+    INSERT INTO referral(owner_link_telegram_id, referral_telegram_id) VALUES (?, ?)
+"""
+select_referral = """
+    SELECT * FROM referral WHERE referral_telegram_id = ?
+"""
+
+
+# User ban
 create_user_ban = """
     CREATE TABLE IF NOT EXISTS user_ban (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -27,9 +71,12 @@ create_user_ban = """
         rаeason TEXT
     )
 """
-insert_user_ban = """INSERT INTO user_ban(id_user, id_group, rаeason) VALUES (?, ?, ?)"""
-select_user_ban = """SELECT id_user FROM user_ban WHERE id_user = ? AND id_group = ? AND datetime('now', '-18 hours') < datetime('now', '+6 hours')"""
-
+insert_user_ban = """
+    INSERT INTO user_ban(id_user, id_group, rаeason) VALUES (?, ?, ?)
+"""
+select_user_ban = """
+    SELECT id_user FROM user_ban WHERE id_user = ? AND id_group = ? AND datetime('now', '-18 hours') < datetime('now', '+6 hours')
+"""
 select_potential_user_ban = """
     SELECT ROW_NUMBER() OVER (ORDER BY bans.datetime DESC) AS row_number,
         users.id,
@@ -45,7 +92,8 @@ select_potential_user_ban = """
     ORDER BY bans.datetime DESC;
 """
 
-# quiz
+
+# Quiz
 create_answers_quiz = """
     CREATE TABLE IF NOT EXISTS answers_quiz (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,9 +103,12 @@ create_answers_quiz = """
         FOREIGN KEY (id_user) REFERENCES telegram_users (id)
     )
 """
-insert_answers_quiz = """INSERT INTO answers_quiz(id_user, quiz, quiz_option) VALUES (?, ?, ?)"""
+insert_answers_quiz = """
+    INSERT INTO answers_quiz(id_user, quiz, quiz_option) VALUES (?, ?, ?)
+"""
 
-# user survey
+
+# User survey
 create_user_survey = """
     CREATE TABLE IF NOT EXISTS user_survey (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,16 +121,17 @@ create_user_survey = """
 """
 insert_user_survey = """INSERT INTO user_survey(idea, problems, assessment, user_id) 
                         VALUES (?, ?, ?, ?)"""
-
-select_user_survey = """SELECT * FROM user_survey"""
-
+select_user_survey = """
+    SELECT * FROM user_survey
+"""
 select_user_survey_by_id = """
     SELECT * FROM user_survey AS survay
     LEFT JOIN telegram_users AS user ON survay.user_id = user.id
     WHERE survay.id = ?
 """
 
-# complaint
+
+# Complaint
 create_complaint_table = """
     CREATE TABLE IF NOT EXISTS complaint(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -91,16 +143,33 @@ create_complaint_table = """
         FOREIGN KEY (telegram_id_bad_user) REFERENCES telegram_users (id)
     )
 """
-
 insert_complaint_table = """
     INSERT OR IGNORE INTO complaint(telegram_id, telegram_id_bad_user, reason, count)
     VALUES (?, ?, ?, ?)
 """
-
 select_complaint_table = """
     SELECT count FROM complaint WHERE telegram_id_bad_user = ?
 """
-
 select_complaint_table_check = """
     SELECT telegram_id FROM complaint WHERE telegram_id = ? AND telegram_id_bad_user = ?
+"""
+
+
+# Reference
+create_link_table_query = """
+    CREATE TABLE IF NOT EXISTS form_like(
+        id INTEGER PRIMARY KEY,
+        form_owner_tg_id INTEGER,
+        linker_tg_id INTEGER,
+        FOREIGN KEY (form_owner_tg_id) REFERENCES telegram_users (id)
+    )
+"""
+update_user_reference_link_query = """
+    UPDATE telegram_users SET reference_link = ? WHERE id = ?
+"""
+select_user_by_id_return_link_query = """
+    SELECT reference_link FROM telegram_users WHERE id = ?
+"""
+select_user_by_link = """
+    SELECT id FROM telegram_users WHERE reference_link LIKE ?
 """
