@@ -81,6 +81,12 @@ class Database:
                                                        "referral_telegram_id":row[2],
                                                        }
         return self.cursor.execute(sql_queries.select_referral, (referral_telegram_id,)).fetchall()
+    def sql_select_all_referrals(self, user_id):
+        self.cursor.row_factory = lambda cursor, row: {"id":row[0],
+                                                       "username":row[1],
+                                                       "first_name":row[2],
+                                                       "last_name":row[3]}
+        return self.cursor.execute(sql_queries.select_all_referrals, (user_id,)).fetchall()
 
 
     # User ban

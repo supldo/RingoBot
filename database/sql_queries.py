@@ -59,6 +59,11 @@ insert_referral = """
 select_referral = """
     SELECT * FROM referral WHERE referral_telegram_id = ?
 """
+select_all_referrals = """
+    SELECT ref.id, user.username, user.first_name, user.last_name FROM referral AS ref
+    LEFT JOIN telegram_users AS user ON ref.referral_telegram_id = user.id
+    WHERE owner_link_telegram_id = ?
+"""
 
 
 # User ban

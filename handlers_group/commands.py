@@ -46,6 +46,8 @@ async def button_handler(message: types.Message):
         await help_button(message)
     elif kb.wallet_button["text"] == tx:
         await wallet(message)
+    elif kb.referrals_button["text"] == tx:
+        await referrals(message)
     elif kb.reference_button["text"] == tx:
         await reference_link(message)
     elif kb.random_button["text"] == tx:
@@ -87,6 +89,24 @@ async def reference_link(message: types.Message):
         Database().sql_update_user_reference_link(link=link, telegram_id=message.from_user.id)
         await bot.send_message(message.from_user.id,
                                f"Твоя реферальная ссылка: {link}")
+
+
+# Список рефералов
+async def referrals(message: types.Message):
+    referrals = Database().sql_select_all_referrals(message.from_user.id)
+    if referrals:
+        show_referrals = ''
+        for referral in referrals:
+            user_n = lambda x: x if x is not None else ""
+            referral_str = f"{user_n(referral['id'])}: "\
+                              f"{user_n(referral['username'])} "\
+                              f"{user_n(referral['first_name'])} "\
+                              f"{user_n(referral['last_name'])}\n"
+            referral_str = ' '.join(referral_str.split())
+            show_referrals += referral_str
+        await bot.send_message(message.chat.id, show_referrals)
+    else:
+        await bot.send_message(message.chat.id, 'У вас пока нету рефераллов')
 
 
 # Кошелёк
@@ -288,6 +308,7 @@ def register_handlers(dp: Dispatcher):
     dp.register_message_handler(start_button, commands=['start'])
     dp.register_message_handler(help_button, commands=['help'])
     dp.register_message_handler(reference_link, commands=['reference'])
+    dp.register_message_handler(referrals, commands=['referrals'])
     dp.register_message_handler(user_complaint, commands=['complaint'])
     dp.register_message_handler(wallet, commands=['wallet'])
     dp.register_message_handler(quiz_1, commands=['quiz'])
