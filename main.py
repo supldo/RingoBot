@@ -1,11 +1,14 @@
+import config
 from aiogram.utils import executor
 from config import dp
 from handlers_admin import admin
 from handlers_group import commands
 from database import sql_commands
 
+
 admin.register_handler_admin(dp=dp)
 commands.register_handlers(dp=dp)
+
 
 async def on_startup(_):
     db = sql_commands.Database()

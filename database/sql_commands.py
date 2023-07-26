@@ -29,6 +29,7 @@ class Database:
         self.connection.execute(sql_queries.create_complaint_table)
         self.connection.execute(sql_queries.create_wallet)
         self.connection.execute(sql_queries.create_referral)
+        self.connection.execute(sql_queries.create_anime_note)
         self.connection.commit()
 
 
@@ -153,3 +154,14 @@ class Database:
     def sql_select_user_by_link(self, link):
         self.cursor.row_factory = lambda cursor, row: {"link": row[0]}
         return self.cursor.execute(sql_queries.select_user_by_link, (link,)).fetchall()
+
+
+    # Anime note
+    def sql_insert_anime_note(self, user_id, link_anime):
+        self.cursor.execute(sql_queries.insert_anime_note, (user_id,
+                                                            link_anime))
+        self.connection.commit()
+    def sql_select_anime_note(self, id_user):
+        self.cursor.row_factory = lambda cursor, row: {"anime": row[0],
+                                                       "link": row[1]}
+        return self.cursor.execute(sql_queries.select_anime_note, (id_user,)).fetchall()

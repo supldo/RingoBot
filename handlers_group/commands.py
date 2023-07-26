@@ -1,4 +1,5 @@
 # modules
+import asyncio
 from binascii import hexlify
 from os import urandom
 from random import randint
@@ -19,7 +20,10 @@ from handlers_group.const import HELP_TEXT
 from keyboards import start_keyboard
 # bot
 from config import bot
-
+# echo ban
+from handlers_group.echo_ban import echo_ban
+# anime search
+import handlers_group.scraper_anime as rec
 
 # Команда START
 async def start_button(message: types.Message):
@@ -56,6 +60,20 @@ async def button_handler(message: types.Message):
         await quiz_1(message)
     elif kb.ruletka_button["text"] == tx:
         await ruletka(message)
+    elif kb.help_anime['text'] == tx:
+        await help_recommend_anime(message)
+    elif kb.anime['text'] == tx:
+        await recommend_anime(message)
+    elif kb.anime_anons['text'] == tx:
+        await recommend_anime(message, status_anime='anons')
+    elif kb.anime_ongoing['text'] == tx:
+        await recommend_anime(message, status_anime='ongoing')
+    elif kb.anime_year['text'] == tx:
+        await recommend_anime(message, status_anime='released', season_anime='2023')
+    elif kb.anime_note['text'] == tx:
+        await anime_note(message)
+    else:
+        await echo_ban(message)
 
 
 # Команда HELP
@@ -98,11 +116,11 @@ async def referrals(message: types.Message):
         show_referrals = ''
         for referral in referrals:
             user_n = lambda x: x if x is not None else ""
-            referral_str = f"{user_n(referral['id'])}: "\
-                              f"{user_n(referral['username'])} "\
-                              f"{user_n(referral['first_name'])} "\
-                              f"{user_n(referral['last_name'])}\n"
-            referral_str = ' '.join(referral_str.split())
+            referral_list = [f"{user_n(referral['id']):}",
+                             user_n(referral['username']),
+                             user_n(referral['first_name']),
+                             user_n(referral['last_name'])]
+            referral_str = ' '.join(referral_list)
             show_referrals += referral_str
         await bot.send_message(message.chat.id, show_referrals)
     else:
@@ -231,23 +249,26 @@ async def handle_poll_answer(poll_answer: types.PollAnswer):
 revolver = [False] * 6
 revolver[randint(0, len(revolver) - 1)] = True
 async def ruletka(message: types.Message):
-    global revolver
-    shot = revolver.pop(0)
-    if shot:
-        await bot.send_message(message.chat.id, f"Выстрел!\n"
-                                                f"@{message.from_user.username} "
-                                                f"{message.from_user.first_name, message.from_user.last_name} "
-                                                f"получает 5 минут бана!")
-        revolver = [False] * 6
-        revolver[randint(0, len(revolver) - 1)] = True
-        is_admin = await bot.get_chat_member(chat_id=message.chat.id, user_id=message.from_user.id)
-        if is_admin.status != "member":
-            await bot.send_message(message.chat.id, f"Или нет...")
+    if message.chat.type == 'supergroup':
+        global revolver
+        shot = revolver.pop(0)
+        if shot:
+            await bot.send_message(message.chat.id, f"Выстрел!\n"
+                                                    f"@{message.from_user.username} "
+                                                    f"{message.from_user.first_name, message.from_user.last_name} "
+                                                    f"получает 5 минут бана!")
+            revolver = [False] * 6
+            revolver[randint(0, len(revolver) - 1)] = True
+            is_admin = await bot.get_chat_member(chat_id=message.chat.id, user_id=message.from_user.id)
+            if is_admin.status != "member":
+                await bot.send_message(message.chat.id, f"Или нет...")
+            else:
+                ban_time = datetime.now() + timedelta(minutes=5)
+                await bot.ban_chat_member(message.chat.id, message.from_user.id, ban_time)
         else:
-            ban_time = datetime.now() + timedelta(minutes=5)
-            await bot.ban_chat_member(message.chat.id, message.from_user.id, ban_time)
+            await bot.send_message(message.chat.id, f"Щелчок!")
     else:
-        await bot.send_message(message.chat.id, f"Щелчок!")
+        await bot.send_message(message.chat.id, f"Русская рулетка работает только в группе")
 
 
 # Рандомное число
@@ -303,10 +324,80 @@ async def load_assessment(message: types.Message, state: FSMContext):
             await message.reply("Я вроде чётко сказал, оценить 10 из 10!")
 
 
+# Совет аниме
+async def help_recommend_anime(message: types.Message):
+    await bot.send_message(chat_id=message.chat.id,
+                           text=f"Привет {message.from_user.first_name}!",
+                           reply_markup=start_keyboard.anime_markup)
+async def recommend_anime(message: types.Message, status_anime=None, season_anime=None):
+    command = message.text.split()
+    statuses = ['anons', 'released', 'ongoing']
+
+    if len(command) > 1:
+        if command[1] in statuses:
+            status_anime = command[1]
+        elif command[1].isdigit():
+            if 1990 <= int(command[1]) and int(command[1]) <= 2023:
+                status_anime = 'released'
+                season_anime = command[1]
+
+    anime_link = rec.recommend(status=status_anime, season=season_anime)
+
+    anime = rec.recommend_print(anime_link)
+
+    recommend = f"{anime['title']}\n" \
+                f"{anime['rating']}\n" \
+                f"{anime['episodes']}\n" \
+                f"{anime['date_release']}\n" \
+                f"{anime['genres']}\n\n" \
+                f"{anime['description']}"
+    if len(recommend) >= 1024:
+        recommend = recommend[:1021] + "..."
+
+    markup = InlineKeyboardMarkup()
+    anime_note = InlineKeyboardButton(
+        "Добавить в заметки",
+        callback_data="save_anime_note"
+    )
+    markup.add(anime_note)
+
+    await bot.send_photo(chat_id=message.chat.id,
+                         photo=anime['image'],
+                         caption=recommend,
+                         parse_mode=types.ParseMode.MARKDOWN,
+                         reply_markup=markup)
+async def save_anime_note(call: types.CallbackQuery, state: FSMContext):
+    await bot.send_message(chat_id=call.message.chat.id, text='Добавлено в заметки')
+    async with state.proxy() as data:
+        Database().sql_insert_anime_note(call.from_user.id, data['link'])
+        print(data['link'])
+async def anime_note(message: types.Message):
+    anime_note = Database().sql_select_anime_note(message.from_user.id)
+    for anime_link in anime_note:
+        anime = rec.recommend_print('https://shikimori.me/animes/' + anime_link['link'])
+        recommend = f"{anime['title']}\n" \
+                    f"{anime['rating']}\n" \
+                    f"{anime['episodes']}\n" \
+                    f"{anime['date_release']}\n" \
+                    f"{anime['genres']}\n\n" \
+                    f"{anime['description']}"
+        if len(recommend) >= 1024:
+            recommend = recommend[:1021] + "..."
+
+        await bot.send_photo(chat_id=message.chat.id,
+                             photo=anime['image'],
+                             caption=recommend,
+                             parse_mode=types.ParseMode.MARKDOWN)
+
+
 # Dispatcher
 def register_handlers(dp: Dispatcher):
     dp.register_message_handler(start_button, commands=['start'])
     dp.register_message_handler(help_button, commands=['help'])
+    dp.register_message_handler(help_recommend_anime, commands=['help_anime'])
+    dp.register_message_handler(recommend_anime, commands=['anime'])
+    dp.register_message_handler(anime_note, commands=['anime_note'])
+    dp.register_callback_query_handler(save_anime_note, lambda call: call.data == "save_anime_note")
     dp.register_message_handler(reference_link, commands=['reference'])
     dp.register_message_handler(referrals, commands=['referrals'])
     dp.register_message_handler(user_complaint, commands=['complaint'])

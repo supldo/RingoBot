@@ -110,6 +110,7 @@ async def secret_word(message: types.Message):
         markup.add(button_call_3)
         await message.reply("ZzZ...", reply_markup=markup)
 
+
 # Диспетчер
 def register_handler_admin(dp: Dispatcher):
     dp.register_message_handler(secret_word, lambda word: "Ringo" in word.text)

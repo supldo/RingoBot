@@ -178,3 +178,23 @@ select_user_by_id_return_link_query = """
 select_user_by_link = """
     SELECT id FROM telegram_users WHERE reference_link LIKE ?
 """
+
+
+# Anime note
+create_anime_note = """
+    CREATE TABLE IF NOT EXISTS anime_note(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id_user INTEGER,
+        link_anime TEXT,
+        FOREIGN KEY (id_user) REFERENCES telegram_users (id),
+        UNIQUE (id_user, link_anime)
+    )
+"""
+
+insert_anime_note = """
+    INSERT OR IGNORE INTO anime_note(id_user, link_anime) VALUES (?, ?)
+"""
+
+select_anime_note = """
+    SELECT id_user, link_anime FROM anime_note WHERE id_user = ?
+"""
