@@ -46,7 +46,6 @@ async def user_survey_answer(call: types.CallbackQuery, state: FSMContext):
     await SurveyAnswerStates.survey_answer.set()
     async with state.proxy() as data:
         data['user_survey_answer'] = call.message.reply_to_message.text
-
 async def load_user_survey_answer(message: types.Message, state: FSMContext):
     async with state.proxy() as data:
         id_survey = data['user_survey_answer']
@@ -54,10 +53,10 @@ async def load_user_survey_answer(message: types.Message, state: FSMContext):
         await bot.send_message(survey['user_id'], f'Ответ от админа: {message.text}')
     await survey_answer.finish()
 
+
 # Список опросов
 class SurveyStates(StatesGroup):
     survey = State()
-
 async def list_user_survey(call: types.CallbackQuery):
     surveys = Database().sql_select_user_survey()
     for n in surveys:
@@ -69,6 +68,7 @@ async def list_user_survey(call: types.CallbackQuery):
                             f'ID Пользователя: {surveys[n]["user_id"]}')
     await bot.send_message(call.message.chat.id, "Выберите опрос по ID")
     await SurveyStates.survey.set()
+
 
 # Опрос по ID
 async def load_survey(message: types.Message, state: FSMContext):
@@ -97,6 +97,7 @@ async def load_survey(message: types.Message, state: FSMContext):
         await state.finish()
     else:
         await bot.send_message(message.chat.id, 'Нечего не найдено!')
+
 
 # Функции админа
 async def secret_word(message: types.Message):

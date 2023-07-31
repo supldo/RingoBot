@@ -25,6 +25,7 @@ from handlers_group.echo_ban import echo_ban
 # anime search
 import handlers_group.scraper_anime as rec
 
+
 # Команда START
 async def start_button(message: types.Message):
     id = message.from_user.id
@@ -371,6 +372,8 @@ async def save_anime_note(call: types.CallbackQuery, state: FSMContext):
     async with state.proxy() as data:
         Database().sql_insert_anime_note(call.from_user.id, data['link'])
         print(data['link'])
+
+
 async def anime_note(message: types.Message):
     anime_note = Database().sql_select_anime_note(message.from_user.id)
     for anime_link in anime_note:

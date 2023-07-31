@@ -161,14 +161,6 @@ select_complaint_table_check = """
 
 
 # Reference
-create_link_table_query = """
-    CREATE TABLE IF NOT EXISTS form_like(
-        id INTEGER PRIMARY KEY,
-        form_owner_tg_id INTEGER,
-        linker_tg_id INTEGER,
-        FOREIGN KEY (form_owner_tg_id) REFERENCES telegram_users (id)
-    )
-"""
 update_user_reference_link_query = """
     UPDATE telegram_users SET reference_link = ? WHERE id = ?
 """
@@ -190,11 +182,9 @@ create_anime_note = """
         UNIQUE (id_user, link_anime)
     )
 """
-
 insert_anime_note = """
     INSERT OR IGNORE INTO anime_note(id_user, link_anime) VALUES (?, ?)
 """
-
 select_anime_note = """
     SELECT id_user, link_anime FROM anime_note WHERE id_user = ?
 """

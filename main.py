@@ -1,12 +1,12 @@
-import config
 from aiogram.utils import executor
 from config import dp
 from handlers_admin import admin
-from handlers_group import commands
+from handlers_group import commands, async_ongoing
 from database import sql_commands
 
 
 admin.register_handler_admin(dp=dp)
+async_ongoing.register_scrapers_ongoing(dp=dp)
 commands.register_handlers(dp=dp)
 
 
