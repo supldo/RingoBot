@@ -9,6 +9,7 @@ admin.register_handler_admin(dp=dp)
 async_ongoing.register_scrapers_ongoing(dp=dp)
 commands.register_handlers(dp=dp)
 
+PROXY_URL = "https://proxy.server:3128"
 
 async def on_startup(_):
     db = sql_commands.Database()
